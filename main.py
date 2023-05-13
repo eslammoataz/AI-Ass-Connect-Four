@@ -39,6 +39,7 @@ def dropPiece(board, row, col, piece):
     board[row][col] = piece
 
 
+# checks if the last row in empty or not
 def isValid_Location(board, col):
     return board[5][col] == 0
 
@@ -92,45 +93,82 @@ def winning_move(board, piece):
                 if (board[r - add][c + add] != piece):
                     win = 0
             if win == 1:
-                return True;
+                return True
 
+
+
+def evaluate_window(window,piece):
+    score = 0
+    opponent_piece = playerPiece
+    if piece == playerPiece:
+        opponent_piece = AiPiece
+
+    if window.count(piece) == 4:
+        score += 100
+    elif window.count(piece) == 3 and window.count(empty) == 1:
+        score += 10
+    if window.count(piece) == 2 and window.count(empty) == 2:
+        score += 5
+    if window.count(opponent_piece) == 3 and window.count(empty) == 1:
+        score-=80
+    return score
 
 def score_position(board, piece):
     # score horizontal
     score = 0
     for r in range(rowCount):
-        row_array = [int(i) for i in list(board[r, :])]
+        row_array = [int(i) for i in list(board[r, :])]  # takes specific row with all the cols
         for c in range(colCount - 3):
             window = row_array[c:c + windowLength]
-            if window.count(piece) == 4:
-                score += 100
-            if window.count(piece) == 3 and window.count(empty) == 1:
-                score += 10
+            score+=evaluate_window(window,piece)
+
+    # score vertical
+    for c in range(colCount):
+        col_array = [int(i) for i in list(board[:, c])]  # takes specific col with all the row
+        for r in range(rowCount - 3):
+            window = col_array[r:r + windowLength]
+            score += evaluate_window(window, piece)
+
+    #score pos diag
+    for r in range(rowCount-3):
+        for c in range (colCount-3):
+            window = [board[r+i][c+i] for i in range (windowLength)]
+            score+=evaluate_window(window,piece)
+
+    #score for neg diag
+    for r in range(rowCount-3):
+        for c in range (colCount-3):
+            window = [board[r+3-i][c+i] for i in range (windowLength)]
+            score+=evaluate_window(window,piece)
+
 
     return score
 
+
 def get_valid_locations(board):
-    valid_location = []
+    valid_locations = []
     for col in range(colCount):
-        if isValid_Location(board,col):
-            valid_location.append(col)
+        if isValid_Location(board, col):
+            valid_locations.append(col)
 
-    return valid_location
+    return valid_locations
 
-def pick_best_move(board,piece):
-    valid_locations=get_valid_locations(board)
-    best_score =0
+
+def pick_best_move(board, piece):
+    valid_locations = get_valid_locations(board)
+    best_score = -10000
     best_col = random.choice(valid_locations)
     for col in valid_locations:
-        row = get_next_open_rows(board,col)
+        row = get_next_open_rows(board, col)
         temp_board = board.copy()
-        dropPiece(temp_board,row,col,piece)
-        score = score_position(temp_board,piece)
+        dropPiece(temp_board, row, col, piece)
+        score = score_position(temp_board, piece)
         if score > best_score:
             best_score = score
             best_col = col
 
-    return  best_col
+    return best_col
+
 
 def drawBoard(board):
     for c in range(colCount):
@@ -201,11 +239,11 @@ while not gameOver:
                     print("Not Valid input")
 
     if (turn == AI and not gameOver):
-        col = random.randint(0, colCount - 1)
+        col = pick_best_move(board, AiPiece)
         if (isValid_Location(board, col)):
             pygame.time.wait(500)
             dropPiece(board, get_next_open_rows(board, col), col, AiPiece)
-            if winning_move(board, playerPiece):
+            if winning_move(board, AiPiece):
                 label = myfont.render("Player 2 Wins!!", 1, yellow)
                 screen.blit(label, (15, 10))
                 gameOver = True
@@ -217,4 +255,4 @@ while not gameOver:
             drawBoard(board)
 
     if gameOver:
-        pygame.time.wait(2000)
+        pygame.time.wait(3000)
