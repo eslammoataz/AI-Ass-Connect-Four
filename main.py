@@ -153,7 +153,7 @@ def is_tereminalNode(board):
     return winning_move(board, playerPiece) or winning_move(board, AiPiece) or len(get_valid_locations(board)) == 0
 
 
-def minimax(board, depth, maximizingPlayer):
+def minimax(board, depth, alpha, beta, maximizingPlayer):
     valid_locations = get_valid_locations(board)
     is_terminal = is_tereminalNode(board)
     if depth == 0 or is_terminal:
@@ -162,7 +162,7 @@ def minimax(board, depth, maximizingPlayer):
                 return (None, 100000000000000)
             elif winning_move(board, playerPiece):
                 return (None, -10000000000000)
-            else:  # Game is over, no more valid moves
+            else:  # more valid moves
                 return (None, 0)
         else:  # Depth is zero
             return (None, score_position(board, AiPiece))
@@ -173,10 +173,13 @@ def minimax(board, depth, maximizingPlayer):
             row = get_next_open_rows(board, col)
             b_copy = board.copy()
             dropPiece(b_copy, row, col, AiPiece)
-            new_score = minimax(b_copy, depth - 1, False)[1]
+            new_score = minimax(b_copy, depth - 1, alpha, beta, False)[1]
             if new_score > value:
                 value = new_score
                 column = col
+            alpha = max(value, alpha)
+            if alpha >= beta:
+                break
         return column, value
 
     else:  # Minimizing player
@@ -186,11 +189,15 @@ def minimax(board, depth, maximizingPlayer):
             row = get_next_open_rows(board, col)
             b_copy = board.copy()
             dropPiece(b_copy, row, col, playerPiece)
-            new_score = minimax(b_copy, depth - 1, True)[1]
+            new_score = minimax(b_copy, depth - 1, alpha, beta, True)[1]
             if new_score < value:
                 value = new_score
                 column = col
+            beta = min(beta, value)
+            if alpha >= beta:
+                break
         return column, value
+
 
 def get_valid_locations(board):
     valid_locations = []
@@ -286,9 +293,8 @@ while not gameOver:
                     print("Not Valid input")
 
     if (turn == AI and not gameOver):
-        col, minimaxScore = minimax(board, 4, True)
+        col, minimaxScore = minimax(board, 5, -math.inf, math.inf, True)
         if (isValid_Location(board, col)):
-            pygame.time.wait(500)
             dropPiece(board, get_next_open_rows(board, col), col, AiPiece)
             if winning_move(board, AiPiece):
                 label = myfont.render("Player 2 Wins!!", 1, yellow)
