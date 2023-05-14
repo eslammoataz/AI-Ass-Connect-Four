@@ -96,8 +96,7 @@ def winning_move(board, piece):
                 return True
 
 
-
-def evaluate_window(window,piece):
+def evaluate_window(window, piece):
     score = 0
     opponent_piece = playerPiece
     if piece == playerPiece:
@@ -106,21 +105,27 @@ def evaluate_window(window,piece):
     if window.count(piece) == 4:
         score += 100
     elif window.count(piece) == 3 and window.count(empty) == 1:
-        score += 10
-    if window.count(piece) == 2 and window.count(empty) == 2:
         score += 5
+    if window.count(piece) == 2 and window.count(empty) == 2:
+        score += 2
     if window.count(opponent_piece) == 3 and window.count(empty) == 1:
-        score-=80
+        score -= 4
     return score
 
+
 def score_position(board, piece):
-    # score horizontal
     score = 0
+    # score center col
+    center_array = [int(i) for i in list(board[:, colCount // 2])]
+    center_count = center_array.count(piece)
+    score += center_count * 3
+
+    # score horizontal
     for r in range(rowCount):
         row_array = [int(i) for i in list(board[r, :])]  # takes specific row with all the cols
         for c in range(colCount - 3):
             window = row_array[c:c + windowLength]
-            score+=evaluate_window(window,piece)
+            score += evaluate_window(window, piece)
 
     # score vertical
     for c in range(colCount):
@@ -129,21 +134,63 @@ def score_position(board, piece):
             window = col_array[r:r + windowLength]
             score += evaluate_window(window, piece)
 
-    #score pos diag
-    for r in range(rowCount-3):
-        for c in range (colCount-3):
-            window = [board[r+i][c+i] for i in range (windowLength)]
-            score+=evaluate_window(window,piece)
+    # score pos diag
+    for r in range(rowCount - 3):
+        for c in range(colCount - 3):
+            window = [board[r + i][c + i] for i in range(windowLength)]
+            score += evaluate_window(window, piece)
 
-    #score for neg diag
-    for r in range(rowCount-3):
-        for c in range (colCount-3):
-            window = [board[r+3-i][c+i] for i in range (windowLength)]
-            score+=evaluate_window(window,piece)
-
+    # score for neg diag
+    for r in range(rowCount - 3):
+        for c in range(colCount - 3):
+            window = [board[r + 3 - i][c + i] for i in range(windowLength)]
+            score += evaluate_window(window, piece)
 
     return score
 
+
+def is_tereminalNode(board):
+    return winning_move(board, playerPiece) or winning_move(board, AiPiece) or len(get_valid_locations(board)) == 0
+
+
+def minimax(board, depth, maximizingPlayer):
+    valid_locations = get_valid_locations(board)
+    is_terminal = is_tereminalNode(board)
+    if depth == 0 or is_terminal:
+        if is_terminal:
+            if winning_move(board, AiPiece):
+                return (None, 100000000000000)
+            elif winning_move(board, playerPiece):
+                return (None, -10000000000000)
+            else:  # Game is over, no more valid moves
+                return (None, 0)
+        else:  # Depth is zero
+            return (None, score_position(board, AiPiece))
+    if maximizingPlayer:
+        value = -math.inf
+        column = random.choice(valid_locations)
+        for col in valid_locations:
+            row = get_next_open_rows(board, col)
+            b_copy = board.copy()
+            dropPiece(b_copy, row, col, AiPiece)
+            new_score = minimax(b_copy, depth - 1, False)[1]
+            if new_score > value:
+                value = new_score
+                column = col
+        return column, value
+
+    else:  # Minimizing player
+        value = math.inf
+        column = random.choice(valid_locations)
+        for col in valid_locations:
+            row = get_next_open_rows(board, col)
+            b_copy = board.copy()
+            dropPiece(b_copy, row, col, playerPiece)
+            new_score = minimax(b_copy, depth - 1, True)[1]
+            if new_score < value:
+                value = new_score
+                column = col
+        return column, value
 
 def get_valid_locations(board):
     valid_locations = []
@@ -239,7 +286,7 @@ while not gameOver:
                     print("Not Valid input")
 
     if (turn == AI and not gameOver):
-        col = pick_best_move(board, AiPiece)
+        col, minimaxScore = minimax(board, 4, True)
         if (isValid_Location(board, col)):
             pygame.time.wait(500)
             dropPiece(board, get_next_open_rows(board, col), col, AiPiece)
