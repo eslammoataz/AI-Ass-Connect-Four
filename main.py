@@ -1,9 +1,69 @@
 import random
-
+import tkinter as tk
+from tkinter import font as tkfont
 import numpy as np
 import pygame
 import sys
 import math
+
+#---------------------------------------------------------#
+# GUI PART
+gameDifficulty = 1
+def submit():
+    global gameDifficulty
+    input_value = entry.get()
+    gameDifficulty = input_value
+
+    # Check if the input is within the range of 1 to 5
+    if input_value.isdigit() and 1 <= int(input_value) <= 5:
+        input_text = input_value
+        output_label.config(text="You entered: " + input_text)
+        window.destroy()  # Close the window
+    else:
+        output_label.config(text="Invalid input. Please enter a value from 1 to 5.")
+
+# Create the main window
+window = tk.Tk()
+window.title("Input GUI")
+
+# Calculate the screen dimensions and center the window
+screen_width = window.winfo_screenwidth()
+screen_height = window.winfo_screenheight()
+window_width = 600
+window_height = 500
+x_position = int((screen_width / 2) - (window_width / 2))
+y_position = int((screen_height / 2) - (window_height / 2))
+window.geometry(f"{window_width}x{window_height}+{x_position}+{y_position}")
+
+# Set the font size for the window
+font_style = tkfont.Font(size=14)
+window.option_add("*Font", font_style)
+
+# Create a frame to hold the label and entry
+frame = tk.Frame(window)
+frame.pack(expand=True)
+
+# Create a label and an entry widget for input
+label = tk.Label(frame, text="Enter the game difficulty from 1 to 5:")
+label.pack(anchor="center")
+
+entry = tk.Entry(frame)
+entry.pack(anchor="center")
+
+# Create a styled button to submit the input
+button_style = {"font": font_style, "background": "blue", "foreground": "white", "border": 0, "width": 20, "height": 2}
+submit_button = tk.Button(window, text="Submit", command=submit, **button_style)
+submit_button.pack(pady=10)
+
+# Create a label to display the output
+output_label = tk.Label(window, text="")
+output_label.pack()
+
+# Start the main event loop
+window.mainloop()
+
+#------------------------------------------------#
+
 
 # Global variable for the rows and cols of the board
 rowCount = 6
@@ -257,6 +317,7 @@ drawBoard(board)
 pygame.display.update()
 
 myfont = pygame.font.SysFont("monospace", 75)
+print(gameDifficulty)
 
 while not gameOver:
 
@@ -293,19 +354,23 @@ while not gameOver:
                     print("Not Valid input")
 
     if (turn == AI and not gameOver):
-        col, minimaxScore = minimax(board, 5, -math.inf, math.inf, True)
+        col, minimaxScore = minimax(board, int(gameDifficulty), -math.inf, math.inf, True)
         if (isValid_Location(board, col)):
             dropPiece(board, get_next_open_rows(board, col), col, AiPiece)
             if winning_move(board, AiPiece):
                 label = myfont.render("Player 2 Wins!!", 1, yellow)
                 screen.blit(label, (15, 10))
                 gameOver = True
-            else:
-                print("Not Valid input")
-            turn += 1
-            turn = turn % 2
-            printBoard(board)
-            drawBoard(board)
+        else:
+            print("Not Valid input")
+        turn += 1
+        turn = turn % 2
+        printBoard(board)
+        drawBoard(board)
 
     if gameOver:
         pygame.time.wait(3000)
+
+
+
+
