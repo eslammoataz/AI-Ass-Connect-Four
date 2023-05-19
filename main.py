@@ -5,12 +5,20 @@ import numpy as np
 import pygame
 import sys
 import math
+from PIL import ImageTk, Image
 
-#---------------------------------------------------------#
+# ---------------------------------------------------------#
 # GUI PART
+import tkinter as tk
+import tkinter.font as tkfont
+from PIL import Image, ImageTk
+
 gameDifficulty = 1
+selected_option = ""
+
+
 def submit():
-    global gameDifficulty
+    global gameDifficulty, selected_option
     input_value = entry.get()
     gameDifficulty = input_value
 
@@ -18,51 +26,76 @@ def submit():
     if input_value.isdigit() and 1 <= int(input_value) <= 5:
         input_text = input_value
         output_label.config(text="You entered: " + input_text)
+        selected_option = checkbox_var.get()  # Get the selected checkbox value
         window.destroy()  # Close the window
     else:
-        output_label.config(text="Invalid input. Please enter a value from 1 to 5.")
+        output_label.config(text="Invalid input. Please enter a value from 1 to 5.", bg="#80c1ff")
+
 
 # Create the main window
 window = tk.Tk()
-window.title("Input GUI")
+window.title("Connect Four Game")
+
+# Load the background image
+image_path = "./bck.png"
+background_image = Image.open(image_path)
+background_image = background_image.resize((window.winfo_screenwidth(), window.winfo_screenheight()), Image.ANTIALIAS)
+background_photo = ImageTk.PhotoImage(background_image)
+
+# Create a label to display the background image
+background_label = tk.Label(window, image=background_photo)
+background_label.place(x=0, y=0, relwidth=1, relheight=1)
 
 # Calculate the screen dimensions and center the window
-screen_width = window.winfo_screenwidth()
-screen_height = window.winfo_screenheight()
 window_width = 600
 window_height = 500
-x_position = int((screen_width / 2) - (window_width / 2))
-y_position = int((screen_height / 2) - (window_height / 2))
+x_position = int((window.winfo_screenwidth() / 2) - (window_width / 2))
+y_position = int((window.winfo_screenheight() / 2) - (window_height / 2))
 window.geometry(f"{window_width}x{window_height}+{x_position}+{y_position}")
 
 # Set the font size for the window
 font_style = tkfont.Font(size=14)
 window.option_add("*Font", font_style)
 
-# Create a frame to hold the label and entry
-frame = tk.Frame(window)
+# Create a label to display the welcome message
+welcome_label = tk.Label(window, text="Welcome to Connect Four Game", font=("Arial", 16, "bold"), bg="#80c1ff",
+                         fg="white", highlightthickness=2, highlightcolor="black")
+welcome_label.pack(pady=10)
+
+# Create a frame to hold the label, entry, and checkboxes
+frame = tk.Frame(window, bg="#80c1ff")
 frame.pack(expand=True)
 
 # Create a label and an entry widget for input
-label = tk.Label(frame, text="Enter the game difficulty from 1 to 5:")
+label = tk.Label(frame, text="Enter the game difficulty from 1 to 5:", font=("Arial", 16, "bold"), bg="#80c1ff",
+                 fg="white", highlightthickness=0, highlightcolor="black")
 label.pack(anchor="center")
 
 entry = tk.Entry(frame)
-entry.pack(anchor="center")
+entry.pack(anchor="center", pady=10)
+
+# Create checkboxes
+checkbox_var = tk.StringVar()
+checkbox1 = tk.Checkbutton(frame, text="Minimax", variable=checkbox_var, bg="#80c1ff",onvalue="Minimax", offvalue="")
+checkbox1.pack(anchor="center")
+checkbox2 = tk.Checkbutton(frame, text="Minimax Alpha beta", variable=checkbox_var,bg="#80c1ff", onvalue="MinimaxAB", offvalue="")
+checkbox2.pack(anchor="center")
 
 # Create a styled button to submit the input
-button_style = {"font": font_style, "background": "blue", "foreground": "white", "border": 0, "width": 20, "height": 2}
+button_style = {"font": font_style, "background": "#80c1ff", "foreground": "white", "border": 0, "width": 20,
+                "height": 2}
 submit_button = tk.Button(window, text="Submit", command=submit, **button_style)
 submit_button.pack(pady=10)
 
 # Create a label to display the output
-output_label = tk.Label(window, text="")
+output_label = tk.Label(window, text="", highlightthickness=2, highlightcolor="black")
 output_label.pack()
+
 
 # Start the main event loop
 window.mainloop()
 
-#------------------------------------------------#
+# ---------------------------------------------------------------#
 
 
 # Global variable for the rows and cols of the board
@@ -89,7 +122,7 @@ radius = int(squareSize / 2 - 5)
 width = colCount * squareSize
 height = (rowCount + 1) * squareSize
 
-
+print(selected_option)
 def create_board():
     board = np.zeros((rowCount, colCount))
     return board
@@ -125,7 +158,7 @@ def winning_move(board, piece):
             if win == 1:
                 return True;
 
-    # check horizontally
+    # check vertically
     for c in range(colCount):
         for r in range(rowCount - 3):
             win = 1
@@ -165,11 +198,16 @@ def evaluate_window(window, piece):
     if window.count(piece) == 4:
         score += 100
     elif window.count(piece) == 3 and window.count(empty) == 1:
-        score += 5
-    if window.count(piece) == 2 and window.count(empty) == 2:
+        score += 10
+    elif window.count(piece) == 2 and window.count(empty) == 2:
         score += 2
     if window.count(opponent_piece) == 3 and window.count(empty) == 1:
-        score -= 4
+        score -= 100
+    elif window.count(opponent_piece) == 2 and window.count(empty) == 2:
+        score -= 5
+    if window.count(opponent_piece) == 4:
+        score -= 100  # Add this
+
     return score
 
 
@@ -213,19 +251,21 @@ def is_tereminalNode(board):
     return winning_move(board, playerPiece) or winning_move(board, AiPiece) or len(get_valid_locations(board)) == 0
 
 
-def minimax(board, depth, alpha, beta, maximizingPlayer):
+def minimax(board, depth, maximizingPlayer):
     valid_locations = get_valid_locations(board)
+    if len(valid_locations) == 0:
+        return -1, -1
     is_terminal = is_tereminalNode(board)
     if depth == 0 or is_terminal:
         if is_terminal:
             if winning_move(board, AiPiece):
-                return (None, 100000000000000)
+                return None, 100000000000000
             elif winning_move(board, playerPiece):
-                return (None, -10000000000000)
+                return None, -10000000000000
             else:  # more valid moves
-                return (None, 0)
+                return None, 0
         else:  # Depth is zero
-            return (None, score_position(board, AiPiece))
+            return (pick_best_move(board, AiPiece), score_position(board, AiPiece))
     if maximizingPlayer:
         value = -math.inf
         column = random.choice(valid_locations)
@@ -233,7 +273,49 @@ def minimax(board, depth, alpha, beta, maximizingPlayer):
             row = get_next_open_rows(board, col)
             b_copy = board.copy()
             dropPiece(b_copy, row, col, AiPiece)
-            new_score = minimax(b_copy, depth - 1, alpha, beta, False)[1]
+            new_score = minimax(b_copy, depth - 1, False)[1]
+            if new_score > value:
+                value = new_score
+                column = col
+        return column, value
+
+    else:  # Minimizing player
+        value = math.inf
+        column = random.choice(valid_locations)
+        for col in valid_locations:
+            row = get_next_open_rows(board, col)
+            b_copy = board.copy()
+            dropPiece(b_copy, row, col, playerPiece)
+            new_score = minimax(b_copy, depth - 1, True)[1]
+            if new_score < value:
+                value = new_score
+                column = col
+        return column, value
+
+
+def minimax_alphaBeta(board, depth, alpha, beta, maximizingPlayer):
+    valid_locations = get_valid_locations(board)
+    if len(valid_locations) == 0:
+        return -1, -1
+    is_terminal = is_tereminalNode(board)
+    if depth == 0 or is_terminal:
+        if is_terminal:
+            if winning_move(board, AiPiece):
+                return None, 100000000000000
+            elif winning_move(board, playerPiece):
+                return None, -10000000000000
+            else:  # more valid moves
+                return None, 0
+        else:  # Depth is zero
+            return (pick_best_move(board, AiPiece), score_position(board, AiPiece))
+    if maximizingPlayer:
+        value = -math.inf
+        column = random.choice(valid_locations)
+        for col in valid_locations:
+            row = get_next_open_rows(board, col)
+            b_copy = board.copy()
+            dropPiece(b_copy, row, col, AiPiece)
+            new_score = minimax_alphaBeta(b_copy, depth - 1, alpha, beta, False)[1]
             if new_score > value:
                 value = new_score
                 column = col
@@ -249,7 +331,7 @@ def minimax(board, depth, alpha, beta, maximizingPlayer):
             row = get_next_open_rows(board, col)
             b_copy = board.copy()
             dropPiece(b_copy, row, col, playerPiece)
-            new_score = minimax(b_copy, depth - 1, alpha, beta, True)[1]
+            new_score = minimax_alphaBeta(b_copy, depth - 1, alpha, beta, True)[1]
             if new_score < value:
                 value = new_score
                 column = col
@@ -270,6 +352,8 @@ def get_valid_locations(board):
 
 def pick_best_move(board, piece):
     valid_locations = get_valid_locations(board)
+    if len(valid_locations) == 0:
+        return -1  # tie
     best_score = -10000
     best_col = random.choice(valid_locations)
     for col in valid_locations:
@@ -316,7 +400,7 @@ screen = pygame.display.set_mode(size)
 drawBoard(board)
 pygame.display.update()
 
-myfont = pygame.font.SysFont("monospace", 75)
+myfont = pygame.font.SysFont("georgia", 75)
 print(gameDifficulty)
 
 while not gameOver:
@@ -325,52 +409,69 @@ while not gameOver:
         if event.type == pygame.QUIT:
             sys.exit()
 
-        if event.type == pygame.MOUSEMOTION:
-            pygame.draw.rect(screen, black, (0, 0, width, squareSize))
-            posx = event.pos[0]
-            if turn == player:
-                pygame.draw.circle(screen, red, (posx, int(squareSize / 2)), radius)
+    pygame.display.update()
 
-        pygame.display.update()
+    # Ask for player 1 Input
+    if turn == player:
 
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            pygame.draw.rect(screen, black, (0, 0, width, squareSize))
+        col = pick_best_move(board, playerPiece)
+        # tie
+        if col == -1:
+            label = myfont.render("Tie Game", 1, (0, 128, 0))
+            screen.blit(label, (80, 10))
+            gameOver = True
 
-            # Ask for player 1 Input
-            if turn == player:
-                posx = event.pos[0]
-                col = int(math.floor(posx / squareSize))
-                if (isValid_Location(board, col)):
-                    dropPiece(board, get_next_open_rows(board, col), col, playerPiece)
-                    if winning_move(board, playerPiece):
-                        label = myfont.render("Player 1 Wins!!", 1, red)
-                        screen.blit(label, (15, 10))
-                        gameOver = True
-                    turn += 1
-                    turn = turn % 2
-                    printBoard(board)
-                    drawBoard(board)
-                else:
-                    print("Not Valid input")
-
-    if (turn == AI and not gameOver):
-        col, minimaxScore = minimax(board, int(gameDifficulty), -math.inf, math.inf, True)
-        if (isValid_Location(board, col)):
-            dropPiece(board, get_next_open_rows(board, col), col, AiPiece)
-            if winning_move(board, AiPiece):
-                label = myfont.render("Player 2 Wins!!", 1, yellow)
-                screen.blit(label, (15, 10))
+        elif isValid_Location(board, col) and not gameOver:
+            pygame.time.wait(500)
+            row = get_next_open_rows(board, col)
+            dropPiece(board, row, col, playerPiece)
+            if winning_move(board, playerPiece):
+                label = myfont.render("Player 1 wins!!", 1, red)
+                screen.blit(label, (80, 10))
                 gameOver = True
+
+            printBoard(board)
+            drawBoard(board)
+
+            turn += 1
+            turn = turn % 2
+        else:  # tie
+            label = myfont.render("Tie Game", 1, (0, 128, 0))
+            screen.blit(label, (80, 10))
+            gameOver = True
+
+    # # Ask for Player 2 Input
+    if turn == AI and not gameOver:
+        # col, minimax_score = minimax(board, int(gameDifficulty), True)
+        col, minimax_score = minimax_alphaBeta(board, 5, -math.inf, math.inf, True)
+
+        # tie
+        if col == -1:
+            label = myfont.render("Tie Game", 1, (0, 128, 0))
+            screen.blit(label, (80, 10))
+            gameOver = True
+
+        elif isValid_Location(board, col):
+            pygame.time.wait(500)
+            row = get_next_open_rows(board, col)
+            dropPiece(board, row, col, AiPiece)
+
+            if winning_move(board, AiPiece):
+                label = myfont.render("Player 2 wins!!", 1, yellow)
+                screen.blit(label, (80, 10))
+                gameOver = True
+
+            printBoard(board)
+            drawBoard(board)
+
+            turn += 1
+            turn = turn % 2
         else:
-            print("Not Valid input")
-        turn += 1
-        turn = turn % 2
-        printBoard(board)
-        drawBoard(board)
+            label = myfont.render("Tie Game", 1, (0, 128, 0))
+            screen.blit(label, (80, 10))
+            gameOver = True
 
     if gameOver:
         pygame.time.wait(3000)
 
-
-
-
+    pygame.time.wait(1000)
